@@ -171,6 +171,7 @@ def main ():
                 compiler.Program (transpilationDirs, __symbols__, __envir__)
                 return setExitCode (exitSuccess)
             except utils.Error as error:
+                raise error
                 utils.log (True, '\n{}\n', error)
                 
                 # Don't log anything else, even in verbose mode, since this would only be confusing
@@ -179,6 +180,7 @@ def main ():
                     
                 return setExitCode (exitSpecificCompileError)
             except Exception as exception:
+                raise exception
                 utils.log (True, '\n{}', exception)
                 
                 # Have to log something else, because a general exception isn't informative enough

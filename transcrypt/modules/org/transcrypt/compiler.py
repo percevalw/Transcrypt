@@ -96,7 +96,8 @@ class Program:
             # Provide main module and, with that, all other modules recursively
             self.searchedModulePaths = []   # Report only failure of searching for main, so clear any history
             self.provide (self.mainModuleName, '__main__')
-        except Exception as exception:
+        except KeyboardInterrupt as exception:
+            raise
             utils.enhanceException (    # If it was an Error, don't change it, otherwise make it one (??? Just to be sure?)
                 exception,
                 message = f'\n\t{exception}'
@@ -166,7 +167,7 @@ class Module:
                 if utils.commandArgs.dstat:
                     try:
                         type_check.run (self.sourcePath)
-                    except Exception as exception:
+                    except KeyboardInterrupt as exception:
                         utils.log (True, 'Validating: {} and dependencies\n\tInternal error in static typing validator\n', self.sourcePath)
 
                 # Construct parse tree
@@ -178,7 +179,7 @@ class Module:
                 if utils.commandArgs.dcheck:
                     try:
                         static_check.run (self.sourcePath, self.parseTree)
-                    except Exception as exception:
+                    except KeyboardInterrupt as exception:
                         utils.log (True, 'Checking: {}\n\tInternal error in lightweight consistency checker, remainder of module skipped\n', self.sourcePath)
 
                 # Generate JavaScript code and sourcemap from parse tree
@@ -476,6 +477,7 @@ class Module:
                     childNode.parentNode = node
 
         except SyntaxError as syntaxError:
+            raise
             utils.enhanceException (
                 syntaxError,
                 lineNr = syntaxError.lineno,
@@ -663,7 +665,8 @@ class Generator (ast.NodeVisitor):
             self.visit (module.parseTree)
             self.targetFragments.append (self.lineNrString) # Last target fragment doesn't have a '\n' to replace in the emit method
 
-        except Exception as exception:
+        except KeyboardInterrupt as exception:
+            raise exception
             utils.enhanceException (
                 exception,
                 lineNr = self.lineNr
@@ -728,6 +731,8 @@ class Generator (ast.NodeVisitor):
         return indentLevel * '\t'
 
     def emit (self, fragment, *formatter):
+        if "prouuuuu" in fragment.format(*formatter):
+            print("ok")
         if (                                                                                            # If at the start of a new line
             not self.targetFragments or                                                                 # It may be the first line
             (self.targetFragments and self.targetFragments [self.fragmentIndex - 1] .endswith ('\n'))   # It may a new line but not the first line
@@ -822,33 +827,7 @@ class Generator (ast.NodeVisitor):
                 self.emit (';\n')
 
     def emitSubscriptAssign (self, target, value, emitPathIndices = lambda: None):
-        if type (target.slice) == ast.Index:        # Always overloaded
-            if type (target.slice.value) == ast.Tuple:
-                self.visit (target.value)
-                self.emit ('.__setitem__ (')        # Free function tries .__setitem__ (overload) and [] (native)
-                self.stripTuple = True
-                self.visit (target.slice.value)
-                self.emit (', ')
-                self.visit (value)
-                emitPathIndices ()
-                self.emit (')')
-            elif self.allowOperatorOverloading:     # Possibly overloaded LHS index dealt with here, is special case
-                self.emit ('__setitem__ (')         # Free function tries .__setitem__ (overload) and [] (native)
-                self.visit (target.value)
-                self.emit (', ')
-                self.visit (target.slice.value)
-                self.emit (', ')
-                self.visit (value)
-                emitPathIndices ()
-                self.emit (')')
-            else:                                   # Non-overloaded LHS index just dealt with by visit_Subscript
-                                                    # which is called indirectly here
-                self.expectingNonOverloadedLhsIndex = True
-                self.visit (target)
-                self.emit (' = ')
-                self.visit (value)
-                emitPathIndices ()
-        elif type (target.slice) == ast.Slice:
+        if type (target.slice) == ast.Slice:
             if self.allowOperatorOverloading:
                 self.emit ('__setslice__ (')        # Free function tries .__setitem__ (overload) and .__setslice__ (native)
                 self.visit (target.value)
@@ -889,6 +868,37 @@ class Generator (ast.NodeVisitor):
             self.emit (', ')
             self.visit (value)
             self.emit (')')
+        else:
+            if type(target.slice) == ast.Index:
+                slice_value = target.slice.value
+            else:
+                slice_value = target.slice
+            # Always overloaded
+            if type (slice_value) == ast.Tuple:
+                self.visit (target.value)
+                self.emit ('.__setitem__ (')        # Free function tries .__setitem__ (overload) and [] (native)
+                self.stripTuple = True
+                self.visit (slice_value)
+                self.emit (', ')
+                self.visit (value)
+                emitPathIndices ()
+                self.emit (')')
+            elif self.allowOperatorOverloading:     # Possibly overloaded LHS index dealt with here, is special case
+                self.emit ('__setitem__ (')         # Free function tries .__setitem__ (overload) and [] (native)
+                self.visit (target.value)
+                self.emit (', ')
+                self.visit (slice_value)
+                self.emit (', ')
+                self.visit (value)
+                emitPathIndices ()
+                self.emit (')')
+            else:                                   # Non-overloaded LHS index just dealt with by visit_Subscript
+                                                    # which is called indirectly here
+                self.expectingNonOverloadedLhsIndex = True
+                self.visit (target)
+                self.emit (' = ')
+                self.visit (value)
+                emitPathIndices ()
 
     def nextTemp (self, name):
         if name in self.tempIndices:
@@ -983,6 +993,11 @@ class Generator (ast.NodeVisitor):
                     self.emitBody (node.body)
             else:
                 super () .visit (node)
+
+    def visit_Starred(self, node):
+        self.emit ('...(')
+        self.visit (node.value)
+        self.emit(')')
 
     def visit_arg (self, node):
         self.emit (self.filterId (node.arg))
@@ -1945,7 +1960,7 @@ class Generator (ast.NodeVisitor):
                 try:
                     self.emitComma (index)
                     self.visit (expr)
-                except Exception as exception:
+                except KeyboardInterrupt as exception:
                     utils.enhanceException (
                         exception,
                         lineNr = self.lineNr,
@@ -2409,11 +2424,16 @@ return list (selfFields).''' + comparatorName + '''(list (otherFields));
                     self.emit ('dict ([')
                     for index, (key, value) in enumerate (zip (node.keys, node.values)):
                         self.emitComma (index)
-                        self.emit ('[')
-                        self.visit (key)                    # In a JavaScript list, name is evaluated as variable or function call to produce a key
-                        self.emit (', ')
-                        self.visit (value)
-                        self.emit (']')
+                        if key is not None:
+                            self.emit('[')
+                            self.visit (key)                    # In a JavaScript list, name is evaluated as variable or function call to produce a key
+                            self.emit (', ')
+                            self.visit (value)
+                            self.emit (']')
+                        else:
+                            self.emit('...(')
+                            self.visit (value)
+                            self.emit(').py_items()')
                     self.emit ('])')
                     return
 
@@ -2847,7 +2867,7 @@ return list (selfFields).''' + comparatorName + '''(list (otherFields));
         for index, alias in enumerate (names):
             try:
                 module = self.useModule (alias.name)
-            except Exception as exception:
+            except KeyboardInterrupt as exception:
                 utils.enhanceException (
                     exception,
                     lineNr = self.lineNr,
@@ -2950,7 +2970,8 @@ return list (selfFields).''' + comparatorName + '''(list (otherFields));
                 except:
                     print ('Unexpected import error:', traceback.format_exc ())  # Should never be here
 
-        except Exception as exception:
+        except KeyboardInterrupt as exception:
+            raise
             utils.enhanceException (
                 exception,
                 lineNr = self.lineNr,
@@ -2958,7 +2979,7 @@ return list (selfFields).''' + comparatorName + '''(list (otherFields));
             )
 
     def visit_JoinedStr (self, node):
-        self.emit (repr (''.join ([value.s if type (value) == ast.Str else '{{}}' for value in node.values])))
+        self.emit (repr (''.join (['{{}}' if type (value) == ast.FormattedValue else value.s for value in node.values])))
         self.emit ('.format (')
         index = 0
         for value in node.values:
@@ -3276,37 +3297,7 @@ return list (selfFields).''' + comparatorName + '''(list (otherFields));
     # Visited for RHS index, non-overloaded LHS index, RHS slice and RHS extended slice
     # LHS slice and overloaded LHS index are dealt with directy in visit_Assign, since the RHS is needed for them also
     def visit_Subscript (self, node):
-        if type (node.slice) == ast.Index:
-            if type (node.slice.value) == ast.Tuple:    # Always overloaded, it must be an RHS index
-                self.visit (node.value)
-                self.emit ('.__getitem__ (')
-                self.stripTuple = True
-                self.visit (node.slice.value)
-                self.emit (')')
-            elif self.allowOperatorOverloading:         # It must be an RHS index
-                self.emit ('__getitem__ (')             # Free function tries .__getitem__ (overload) and [] (native)
-                self.visit (node.value)
-                self.emit (', ')
-                self.visit (node.slice.value)
-                self.emit (')')
-            else:                                       # It may be an LHS or RHS index
-                try:
-                    isRhsIndex = not self.expectingNonOverloadedLhsIndex
-                    self.expectingNonOverloadedLhsIndex = False
-                    if isRhsIndex and self.allowKeyCheck:
-                        self.emit ('__k__ (')
-                        self.visit (node.value)
-                        self.emit (', ')
-                        self.visit (node.slice.value)
-                        self.emit (')')
-                    else:
-                        self.visit (node.value)
-                        self.emit (' [')
-                        self.visit (node.slice.value)
-                        self.emit (']')
-                except:
-                    print (traceback.format_exc ())
-        elif type (node.slice) == ast.Slice:
+        if type (node.slice) == ast.Slice:
             if self.allowOperatorOverloading:
                 self.emit ('__getslice__ (')            # Free function, tries .__getitem__ (overload) and .__getslice__ (native)
                 self.visit (node.value)
@@ -3342,6 +3333,40 @@ return list (selfFields).''' + comparatorName + '''(list (otherFields));
                 self.visit (dim)
             self.emit (']')
             self.emit (')')
+        else:
+            if type (node.slice) == ast.Index:
+                slice_value = node.slice.value
+            else:
+                slice_value = node.slice
+            if type (slice_value) == ast.Tuple:    # Always overloaded, it must be an RHS index
+                self.visit (node.value)
+                self.emit ('.__getitem__ (')
+                self.stripTuple = True
+                self.visit (slice_value)
+                self.emit (')')
+            elif self.allowOperatorOverloading:         # It must be an RHS index
+                self.emit ('__getitem__ (')             # Free function tries .__getitem__ (overload) and [] (native)
+                self.visit (node.value)
+                self.emit (', ')
+                self.visit (slice_value)
+                self.emit (')')
+            else:                                       # It may be an LHS or RHS index
+                try:
+                    isRhsIndex = not self.expectingNonOverloadedLhsIndex
+                    self.expectingNonOverloadedLhsIndex = False
+                    if isRhsIndex and self.allowKeyCheck:
+                        self.emit ('__k__ (')
+                        self.visit (node.value)
+                        self.emit (', ')
+                        self.visit (slice_value)
+                        self.emit (')')
+                    else:
+                        self.visit (node.value)
+                        self.emit (' [')
+                        self.visit (slice_value)
+                        self.emit (']')
+                except:
+                    print (traceback.format_exc ())
 
     def visit_Try (self, node):
         self.adaptLineNrString (node)
