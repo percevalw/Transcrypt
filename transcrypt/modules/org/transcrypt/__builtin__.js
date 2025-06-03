@@ -23,7 +23,8 @@ var __except__ = null;
  // Creator of a marked dictionary, used to pass **kwargs parameter
 export function __kwargtrans__ (anObject) {
     anObject.__kwargtrans__ = null; // Removable marker
-    anObject.constructor = Object;
+    // set constructor property on object
+    Object.defineProperty (anObject, 'constructor', {value: Object, writable: false, enumerable: false, configurable: false});
     return anObject;
 }
 
@@ -1875,7 +1876,6 @@ export function dict (objectOrPairs) {
     __setproperty__ (instance, '__contains__', {value: __contains__, enumerable: false});
     __setproperty__ (instance, 'py_keys', {value: __keys__, enumerable: false});
     __setproperty__ (instance, '__iter__', {value: function () {new __PyIterator__ (this.py_keys ());}, enumerable: false});
-    __setproperty__ (instance, Symbol.iterator, {value: function () {new __JsIterator__ (this.py_keys ());}, enumerable: false});
     __setproperty__ (instance, 'py_items', {value: __items__, enumerable: false});
     __setproperty__ (instance, 'py_del', {value: __del__, enumerable: false});
     __setproperty__ (instance, 'py_clear', {value: __clear__, enumerable: false});
@@ -1889,6 +1889,22 @@ export function dict (objectOrPairs) {
     __setproperty__ (instance, '__setitem__', {value: __dsetitem__, enumerable: false});    // trigger overloading to deal with slices
     return instance;
 }
+
+
+Object.defineProperty(Object.prototype, '__contains__', {value: __contains__, enumerable: false});
+Object.defineProperty(Object.prototype, 'py_keys', {value: __keys__, enumerable: false});
+Object.defineProperty(Object.prototype, '__iter__', {value: function () {new __PyIterator__ (this.py_keys ());}, enumerable: false});
+Object.defineProperty(Object.prototype, 'py_items', {value: __items__, enumerable: false});
+Object.defineProperty(Object.prototype, 'py_del', {value: __del__, enumerable: false});
+Object.defineProperty(Object.prototype, 'py_clear', {value: __clear__, enumerable: false});
+Object.defineProperty(Object.prototype, 'py_get', {value: __getdefault__, enumerable: false});
+Object.defineProperty(Object.prototype, 'py_setdefault', {value: __setdefault__, enumerable: false});
+Object.defineProperty(Object.prototype, 'py_pop', {value: __pop__, enumerable: false});
+Object.defineProperty(Object.prototype, 'py_popitem', {value: __popitem__, enumerable: false});
+Object.defineProperty(Object.prototype, 'py_update', {value: __update__, enumerable: false});
+Object.defineProperty(Object.prototype, 'py_values', {value: __values__, enumerable: false});
+Object.defineProperty(Object.prototype, '__getitem__', {value: __dgetitem__, enumerable: false});    // Needed since compound keys necessarily
+Object.defineProperty(Object.prototype, '__setitem__', {value: __dsetitem__, enumerable: false});    // trigger overloading to deal with slices
 
 dict.__name__ = 'dict';
 dict.__bases__ = [object];
