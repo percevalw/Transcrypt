@@ -566,7 +566,7 @@ class Generator (ast.NodeVisitor):
             ('sort', 'py_sort'),                    ('js_sort', 'sort'),
             ('split', 'py_split'),                  ('js_split', 'split'),
             ('switch', 'py_switch'),
-            ('type', 'py_metatype'),                ('js_type', 'type'),    # Only for the type metaclass, the type operator is dealt with separately in visit_Call
+            ('type', 'type'),                       ('js_type', 'type'),    # Only for the type metaclass, the type operator is dealt with separately in visit_Call
             ('TypeError', 'py_TypeError'),          ('js_TypeError', 'TypeError'),
             ('update', 'py_update'),                ('js_update', 'update'),
             ('values', 'py_values'),                ('js_values', 'values'),
@@ -1016,38 +1016,6 @@ class Generator (ast.NodeVisitor):
 
         self.indent ()  # Start of function body, the end is not in visit_arguments
 
-        # Defaults for positional args (before *), only if not passed normally before this point
-        # They can also be passed in as keyword args
-        # If so, the keywords are filled in starting with the last positional arg
-        # So after a keyword positional arg cannot follow a non-keyword positional arg
-        # The kwarg transfer object may be the last of the actual params
-        # It should not initialize a formal param, so it's overwritten by the default as well.
-        for arg, expr in reversed (list (zip (reversed (node.args), reversed (node.defaults)))):
-            if expr:
-                # If a default expr is given for this arg
-
-                # Condition for using that default expr:
-                # - no actual param value has been passed for this formal param in the call
-                # or
-                # - the actual param has property __kwargtrans__ (is marked a __kwargtrans__ object)
-                # The latter is because the __kwargtrans__ object isn't a 'regular' actual param, so shouldn't be assigned to any formal param
-                # Since the formal param "who's turn it was" does not get an actual value, it'll have to be satisfied with its default expr
-                self.emit ('if (typeof {0} == \'undefined\' || ({0} != null && {0}.hasOwnProperty ("__kwargtrans__"))) {{;\n', self.filterId (arg.arg))
-
-                self.indent ()
-                self.emit ('var {} = ', self.filterId (arg.arg))
-                self.visit (expr)
-                self.emit (';\n')
-                self.dedent ()
-                self.emit ('}};\n')
-
-        # Defaults for kwonly args (after *), unconditionally, since they will be passed only after this point
-        for arg, expr in zip (node.kwonlyargs, node.kw_defaults):
-            if expr:
-                self.emit ('var {} = ', self.filterId (arg.arg))
-                self.visit (expr)
-                self.emit (';\n')
-
         if self.allowKeywordArgs:
             # If there is a **kwargs arg, make a local to hold its calltime contents
             # This local is needed even if arguments.length == 0, it's just empty then but may be read or passed on
@@ -1129,6 +1097,39 @@ class Generator (ast.NodeVisitor):
                     self.filterId (node.vararg.arg),
                     len (node.args),
                 )
+
+
+        # Defaults for positional args (before *), only if not passed normally before this point
+        # They can also be passed in as keyword args
+        # If so, the keywords are filled in starting with the last positional arg
+        # So after a keyword positional arg cannot follow a non-keyword positional arg
+        # The kwarg transfer object may be the last of the actual params
+        # It should not initialize a formal param, so it's overwritten by the default as well.
+        for arg, expr in reversed (list (zip (reversed (node.args), reversed (node.defaults)))):
+            if expr:
+                # If a default expr is given for this arg
+
+                # Condition for using that default expr:
+                # - no actual param value has been passed for this formal param in the call
+                # or
+                # - the actual param has property __kwargtrans__ (is marked a __kwargtrans__ object)
+                # The latter is because the __kwargtrans__ object isn't a 'regular' actual param, so shouldn't be assigned to any formal param
+                # Since the formal param "who's turn it was" does not get an actual value, it'll have to be satisfied with its default expr
+                self.emit ('if (typeof {0} == \'undefined\' || ({0} != null && {0}.hasOwnProperty ("__kwargtrans__"))) {{;\n', self.filterId (arg.arg))
+
+                self.indent ()
+                self.emit ('var {} = ', self.filterId (arg.arg))
+                self.visit (expr)
+                self.emit (';\n')
+                self.dedent ()
+                self.emit ('}};\n')
+
+        # Defaults for kwonly args (after *), unconditionally, since they will be passed only after this point
+        for arg, expr in zip (node.kwonlyargs, node.kw_defaults):
+            if expr:
+                self.emit ('var {} = ', self.filterId (arg.arg))
+                self.visit (expr)
+                self.emit (';\n')
 
     def visit_AnnAssign (self, node):
         if node.value != None:  # Rather than node.value is a NameConstant with value None
@@ -1784,7 +1785,7 @@ class Generator (ast.NodeVisitor):
                             ),
                             args = [
                                 ast.Name (
-                                    id = '.'.join ([scope.node.name for scope in self.getAdjacentClassScopes (True)]),
+                                    id = super_target,
                                     ctx = ast.Load
                                 ),
                                 ast.Str (
@@ -1902,9 +1903,6 @@ class Generator (ast.NodeVisitor):
         # Emit positional args
         for index, expr in enumerate (node.args):
             self.emitComma (index)
-
-            if type (expr) == ast.Starred:
-                self.emit ('...')
 
             self.visit (expr)
 
@@ -2713,23 +2711,32 @@ return list (selfFields).''' + comparatorName + '''(list (otherFields));
                 else:
                     self.emit (' (')
 
-                self.emit ('{}function', 'async ' if anAsync else '')
-
             else:
                 if isMethod:
                     if jsCall:
-                        self.emit ('{}: function', self.filterId (nodeName), 'async ' if anAsync else '')
+                        self.emit ('{}: ', self.filterId (nodeName))
                     else:
                         if isStaticMethod:
-                            self.emit ('get {} () {{return {}function', self.filterId (nodeName), 'async ' if anAsync else '')
+                            self.emit ('get {} () {{return ', self.filterId (nodeName))
                         else:
-                            self.emit ('get {} () {{return {} (this, {}function', self.filterId (nodeName), getter, 'async ' if anAsync else '')
+                            self.emit ('get {} () {{return {} (this, ', self.filterId (nodeName), getter)
                 elif isGlobal:
                     if type (node.parentNode) == ast.Module and not nodeName in self.allOwnNames:
                         self.emit ('export ')
-                    self.emit ('var {} = {}function', self.filterId (nodeName), 'async ' if anAsync else '')
+                    self.emit ('var {} = ', self.filterId (nodeName))
                 else:
-                    self.emit ('var {} = {}function', self.filterId (nodeName), 'async ' if anAsync else '')
+                    self.emit ('var {} = ', self.filterId (nodeName))
+
+            captured_defaults = []
+            for index, default in enumerate (node.args.defaults):
+                if isinstance(default, ast.Name):
+                    captured_defaults.append (default.id)
+                # TODO: support defaults involving variables, eg func(arg=x + 2)
+
+            if captured_defaults:
+                self.emit('(function(' + ', '.join([self.filterId(default) for default in captured_defaults]) + ') {{ return (')
+
+            self.emit("{}function", "async " if anAsync else "")
 
             yieldStarIndex = self.fragmentIndex
 
@@ -2759,6 +2766,9 @@ return list (selfFields).''' + comparatorName + '''(list (otherFields));
 
             emitScopedBody ()
             self.emit ('}}')
+
+            if captured_defaults:
+                self.emit (');}})(' + ', '.join([self.filterId(default) for default in captured_defaults]) + ')')
 
             if self.allowDocAttribs:
                 docString = ast.get_docstring (node)
@@ -2993,12 +3003,26 @@ return list (selfFields).''' + comparatorName + '''(list (otherFields));
         self.emit (')')
 
     def visit_Lambda (self, node):
+        captured_defaults = []
+        for default in node.args.defaults:
+            if isinstance(default, ast.Name):
+                captured_defaults.append (default)
+            # TODO: support defaults involving variables, eg func(arg=x + 2)
+        if captured_defaults:
+            node.args.defaults = [
+                ast.Name("_default_{}".format(default.id), ctx=ast.Load)
+                for default in node.args.defaults
+                if default in captured_defaults
+            ]
+            self.emit('(function(' + ', '.join([f"_default_{d.id}" for d in captured_defaults]) + ') {{ return (')
         self.emit ('(function __lambda__ ',)    # Extra () needed to make it callable at definition time
         self.visit (node.args)
         self.emit ('return ')
         self.visit (node.body)
         self.dedent ()
         self.emit (';\n}})')
+        if captured_defaults:
+            self.emit (');}})(' + ', '.join([self.filterId(default.id) for default in captured_defaults]) + ')')
 
     def visit_List (self, node):
         self.emit ('[')
