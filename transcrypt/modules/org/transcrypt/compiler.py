@@ -1772,6 +1772,9 @@ class Generator (ast.NodeVisitor):
                 )
 
             else:   # Construct node for __super__ (self, '<methodName>')(self, <params>) and visit it
+                super_target = '.'.join ([scope.node.name for scope in self.getAdjacentClassScopes (True)])
+                if not super_target:
+                    super_target = "self.__class__"
                 self.visit (
                     ast.Call (
                         func = ast.Call (
@@ -1954,7 +1957,7 @@ class Generator (ast.NodeVisitor):
             else:
                 self.emit (' (')
 
-        self.emit (' __class__ (\'{}\', [', self.filterId (node.name))
+        self.emit (' _class_ (\'{}\', [', self.filterId (node.name))
         if node.bases:
             for index, expr in enumerate (node.bases):
                 try:

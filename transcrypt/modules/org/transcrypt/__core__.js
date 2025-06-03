@@ -170,7 +170,10 @@ export var py_metatype = {
         // Create the class cls, a functor, which the class creator function will return
         var cls = function () {                     // If cls is called with arg0, arg1, etc, it calls its __new__ method with [arg0, arg1, etc]
             var args = [] .slice.apply (arguments); // It has a __new__ method, not yet but at call time, since it is copied from the parent in the loop below
-            return cls.__new__ (args);              // Each Python class directly or indirectly derives from object, which has the __new__ method
+            var instance = cls.__new__ (args);              // Each Python class directly or indirectly derives from object, which has the __new__ method
+            // Call constructor
+            cls.__init__.apply (null, [instance] .concat (args));
+            return instance;
         };                                          // If there are no bases in the Python source, the compiler generates [object] for this parameter
         
         // Copy all methods, including __new__, properties and static attributes from base classes to new cls object
@@ -248,16 +251,13 @@ export var object = {
             })
         }
 
-        // Call constructor
-        this.__init__.apply (null, [instance] .concat (args));
-
         // Return constructed instance
         return instance;
     }   
 };
 
 // Class creator facade function, calls class creation worker
-export function __class__ (name, bases, attribs, meta) {         // Parameter meta is optional
+export function _class_ (name, bases, attribs, meta) {         // Parameter meta is optional
     if (meta === undefined) {
         meta = bases [0] .__metaclass__;
     }
