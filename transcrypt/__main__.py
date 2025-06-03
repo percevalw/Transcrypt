@@ -70,9 +70,7 @@ def main ():
     exitCode = exitCommandArgsError
 
     def exitHandler ():
-        if exitCode == exitSuccess:
-            utils.log (True, '\nReady\n\n')       
-        else:
+        if exitCode != exitSuccess:
             utils.log (True, '\nAborted\n\n')
             
     atexit.register (exitHandler)
