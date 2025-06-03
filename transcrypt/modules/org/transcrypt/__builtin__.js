@@ -171,15 +171,14 @@ export function __in__ (element, container) {
     if (container === undefined || container === null) {
         return false;
     }
+    if (container.indexOf) {
+        return container.indexOf(element) > -1;
+    }
     if (container.__contains__ instanceof Function) {
         return container.__contains__ (element);
     }
     else {                                      // Parameter 'element' itself is an array, string or a plain, non-dict JavaScript object
-        return (
-            container.indexOf ?                 // If it has an indexOf
-            container.indexOf (element) > -1 :  // it's an array or a string,
-            container.hasOwnProperty (element)  // else it's a plain, non-dict JavaScript object
-        );
+        return container.hasOwnProperty (element);
     }
 };
 
@@ -956,6 +955,9 @@ export function deepcopy (anObject) {
 // List extensions to Array
 
 export function list (iterable) {                                      // All such creators should be callable without new
+    if (Object.getPrototypeOf(iterable).constructor === __PyIterator__) {
+      iterable = iterable.iterable; // If iterable is a Python iterator, get the iterable from it
+    }
     let instance = iterable ? Array.from (iterable) : [];
     // Sort is the normal JavaScript sort, Python sort is a non-member function
     return instance;
@@ -1114,6 +1116,9 @@ tuple.__bases__ = [object];
 export function set (iterable) {
     let instance = [];
     if (iterable) {
+        if (Object.getPrototypeOf(iterable).constructor === __PyIterator__) {
+          iterable = iterable.iterable; // If iterable is a Python iterator, get the iterable from it
+        }
         for (let index = 0; index < iterable.length; index++) {
             instance.add (iterable [index]);
         }
