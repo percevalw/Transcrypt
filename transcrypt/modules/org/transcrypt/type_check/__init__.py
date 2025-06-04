@@ -6,7 +6,7 @@ import traceback
 try:
     from mypy import api
 except:
-    print ('Could not find mypy')
+    pass
     
 from org.transcrypt import utils
 
