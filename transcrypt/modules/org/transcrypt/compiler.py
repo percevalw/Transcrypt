@@ -3524,12 +3524,8 @@ return list (selfFields).''' + comparatorName + '''(list (otherFields));
 
         for item in node.items:
             self.emit ('var ')                      # Should be in surrounding scope but may be overwritten, so use var rather than let
-            if (item.optional_vars):
-                self.visit (item.optional_vars)
-                withId = item.optional_vars.id
-            else:
-                withId = self.nextTemp ('withid')
-                self.emit (withId)
+            withId = self.nextTemp ('withid')
+            self.emit (withId)
 
             self.emit (' = ')
             self.visit (item.context_expr)
@@ -3537,6 +3533,9 @@ return list (selfFields).''' + comparatorName + '''(list (otherFields));
 
             self.emit ('try {{\n')
             self.indent ()
+            if (item.optional_vars):
+                self.visit (item.optional_vars)
+                self.emit(' = ')
             self.emit ('{}.__enter__ ();\n', withId)
             self.emitBody (node.body)
             self.emit ('{}.__exit__ ();\n', withId)
