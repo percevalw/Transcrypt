@@ -3235,13 +3235,29 @@ return list (selfFields).''' + comparatorName + '''(list (otherFields));
 
         self.emit (self.filterId (node.id))
 
+    def visit_Constant(self, node):
+        if node.value is None:
+            self.emit ('null')
+        elif node.value is True:
+            self.emit ('true')
+        elif node.value is False:
+            self.emit ('false')
+        elif isinstance(node.value, complex):
+            self.emit ('complex (0, {})'.format (node.value.imag))
+        elif isinstance(node.value, str):
+            self.emit ('{}', repr (node.value)) # Use repr (node.s) as second, rather than first parameter, since node.s may contain {}
+        else:
+            self.emit ('{}', node.value)
+
     def visit_NameConstant (self, node):
+        # Deprecated since Python 3.8 in favor of Constant
         self.emit (self.nameConsts [node.value])
 
     def visit_Nonlocal (self, node):
         self.getScope (ast.FunctionDef, ast.AsyncFunctionDef) .nonlocals.update (node.names)
 
     def visit_Num (self, node):
+        # Deprecated since Python 3.8 in favor of Constant
         self.emit ('complex (0, {})'.format (node.n.imag) if type (node.n) == complex else '{}'.format (node.n))
 
     def visit_Pass (self, node):
@@ -3319,6 +3335,7 @@ return list (selfFields).''' + comparatorName + '''(list (otherFields));
         self.emit ('])')
 
     def visit_Str (self, node):
+        # Deprecated since Python 3.8 in favor of Constant
         self.emit ('{}', repr (node.s)) # Use repr (node.s) as second, rather than first parameter, since node.s may contain {}
 
     # Visited for RHS index, non-overloaded LHS index, RHS slice and RHS extended slice
