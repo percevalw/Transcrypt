@@ -2661,9 +2661,9 @@ return list (selfFields).''' + comparatorName + '''(list (otherFields));
                         isProperty = True
                         nodeName = '_get_' + node.name
                         pushPropertyAccessor (nodeName)
-                    elif re.match ('[a-zA-Z0-9_]+\.setter', nameCheck):
+                    elif re.match (r'[a-zA-Z0-9_]+\.setter', nameCheck):
                         isProperty = True
-                        nodeName = '_set_' + re.match ('([a-zA-Z0-9_]+)\.setter', nameCheck).group (1)
+                        nodeName = '_set_' + re.match (r'([a-zA-Z0-9_]+)\.setter', nameCheck).group (1)
                         pushPropertyAccessor (nodeName)
                     else:
                         decorate = True
@@ -3565,6 +3565,11 @@ return list (selfFields).''' + comparatorName + '''(list (otherFields));
             self.emit ('throw {};\n', self.getTemp ('except'))
             self.dedent ()
             self.emit ('}}\n')
+            self.dedent()
+            self.emit('}}\n')
+            self.emit('finally {{\n')
+            self.indent()
+            self.emit ('{}.__exit__ ();\n', withId)
             self.dedent ()
             self.emit ('}}\n')
             self.prevTemp ('except')
