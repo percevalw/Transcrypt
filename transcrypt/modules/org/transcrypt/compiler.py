@@ -3435,6 +3435,13 @@ return list (selfFields).''' + comparatorName + '''(list (otherFields));
         if node.handlers:                           # try ... finally (without any catch) is also valid Python
             self.emit ('catch ({}) {{\n', self.nextTemp ('except'))
             self.indent ()
+            except_tmp = self.getTemp("except")
+            self.emit(
+                "if (Error.isError({})) {{ {} = BaseException({}); }}\n",
+                except_tmp,
+                except_tmp,
+                except_tmp,
+            )
 
             for index, exceptionHandler in enumerate (node.handlers):
                 if index:
