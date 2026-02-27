@@ -213,7 +213,7 @@ export var WeakValueDictionary = _class_("WeakValueDictionary", [object], {
   },
 
   // get(key, default=None)
-  get get() {
+  get py_get() {
     return __get__(this, function(self, key, defaultValue) {
       if (defaultValue === undefined) {
         defaultValue = null;
@@ -232,7 +232,7 @@ export var WeakValueDictionary = _class_("WeakValueDictionary", [object], {
   },
 
   // pop(key, default=_marker)
-  get pop() {
+  get py_pop() {
     return __get__(this, function(self, key, defaultValue) {
       var wref = self._map.get(key);
       if (wref === undefined) {
@@ -254,7 +254,7 @@ export var WeakValueDictionary = _class_("WeakValueDictionary", [object], {
   },
 
   // items(): generator that yields [key, value] pairs for live values
-  get items() {
+  get py_items() {
     return __get__(this, function* (self) {
       for (var pair of self._map.entries()) {
         var key = pair[0];
@@ -271,10 +271,24 @@ export var WeakValueDictionary = _class_("WeakValueDictionary", [object], {
   },
 
   // clear all entries
-  get clear() {
+  get py_clear() {
     return __get__(this, function(self) {
       self._map = new Map();
     });
+  },
+
+  get py_keys() {
+    return __get__(this, function* (self) {
+      for (var pair of self._map.entries()) {
+        var key = pair[0];
+        var wref = pair[1];
+        var val = wref.deref();
+        if (val === undefined) {
+          self._map.delete(key);
+        } else {
+          yield key;
+        }
+      }
+    });
   }
 });
-
