@@ -3437,7 +3437,8 @@ return list (selfFields).''' + comparatorName + '''(list (otherFields));
             self.indent ()
             except_tmp = self.getTemp("except")
             self.emit(
-                "if (Error.isError({})) {{ {} = BaseException(({}).toString()); }}\n",
+                "if (Error.isError({})) {{ {} = Exception(({}).toString(), __kwargtrans__({{error: {}}})); }}\n",
+                except_tmp,
                 except_tmp,
                 except_tmp,
                 except_tmp,
