@@ -100,14 +100,22 @@ class RuntimeWarning (Warning):
     
 #__pragma__ ('kwargs')
 
+def __compare__ (a, b):                                             # Python ordering, sequences compare item by item
+    if Array.isArray (a) and Array.isArray (b):
+        for i in range (min (len (a), len (b))):
+            result = __compare__ (a [i], b [i])
+            if result != 0:
+                return result
+        return -1 if len (a) < len (b) else 1 if len (a) > len (b) else 0
+    return -1 if a < b else 1 if a > b else 0
+
 def __sort__ (iterable, key = None, reverse = False):               # Used by py_sort, can deal with kwargs
+    # JavaScript sorts are stable, equal items keep their order like in Python, also when reversed
+    sign = -1 if reverse else 1
     if key:
-        iterable.sort (lambda a, b: 1 if key (a) > key (b) else -1) # JavaScript sort, case '==' is irrelevant for sorting
+        iterable.sort (lambda a, b: sign * __compare__ (key (a), key (b)))
     else:
-        iterable.sort ()                                            # JavaScript sort
-        
-    if reverse:
-        iterable.reverse ()
+        iterable.sort (lambda a, b: sign * __compare__ (a, b))
         
 def sorted (iterable, key = None, reverse = False):
     if type (iterable) == dict:
